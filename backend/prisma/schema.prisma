@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role String @default("STAFF")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockMovements StockMovement[]
+  auditLogs      AuditLog[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  name            String
+  sku             String   @unique
+  barcode         String?  @unique
+  categoryId      String
+  uom             String   // Unit of Measure (e.g., pcs, kg, boxes)
+  minimumStock    Int      @default(0)
+  reorderLevel    Int      @default(0)
+  reorderQuantity Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category       Category        @relation(fields: [categoryId], references: [id])
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+
+  @@index([sku])
+  @@index([categoryId])
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locations StockLocation[]
+}
+
+model StockLocation {
+  id          String   @id @default(uuid())
+  name        String
+  warehouseId String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse    Warehouse       @relation(fields: [warehouseId], references: [id])
+  stockLevels  StockLevel[]
+  
+  // Relationships for stock movements
+  movementsOut StockMovement[] @relation("FromLocation")
+  movementsIn  StockMovement[] @relation("ToLocation")
+}
+
+model StockLevel {
+  id         String   @id @default(uuid())
+  productId  String
+  locationId String
+  quantity   Int      @default(0) // Current calculated stock quantity
+  updatedAt  DateTime @updatedAt
+
+  product  Product       @relation(fields: [productId], references: [id])
+  location StockLocation @relation(fields: [locationId], references: [id])
+
+  @@unique([productId, locationId])
+  @@index([productId])
+  @@index([locationId])
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  type      String   // receipt, delivery, transfer, adjustment
+  reference String   @unique // e.g., PO-1001, DO-2002
+  status    String   // DRAFT, COMPLETED, CANCELLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements StockMovement[]
+}
+
+model StockMovement {
+  id             String   @id @default(uuid())
+  productId      String
+  fromLocationId String?  // Null for receipts (vendor to us)
+  toLocationId   String?  // Null for deliveries (us to customer)
+  quantity       Int      // Absolute quantity moved
+  type           String   // RECEIPT, DELIVERY, TRANSFER, ADJUSTMENT
+  documentId     String?
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  product      Product        @relation(fields: [productId], references: [id])
+  fromLocation StockLocation? @relation("FromLocation", fields: [fromLocationId], references: [id])
+  toLocation   StockLocation? @relation("ToLocation", fields: [toLocationId], references: [id])
+  document     Document?      @relation(fields: [documentId], references: [id])
+  createdBy    User           @relation(fields: [createdById], references: [id])
+
+  @@index([productId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  oldData   String?
+  newData   String?
+  timestamp DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
