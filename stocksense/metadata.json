@@ -1,0 +1,6 @@
+{
+  "name": "StockSense",
+  "description": "StockSense v2.4 - Real-time warehouse inventory telemetry, stock velocity, and immutable audit ledger across fulfillment nodes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
