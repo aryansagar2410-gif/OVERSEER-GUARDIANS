@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Product, MovementRecord, WarehouseNode } from '../types/inventory';
+import { DashboardSummary } from '../api/dashboard';
 
 interface DashboardViewProps {
   warehouse: WarehouseNode;
   products: Product[];
   movements: MovementRecord[];
+  summary: DashboardSummary | null;
   onOpenQuickTransfer: () => void;
   onOpenNewReceipt: () => void;
   onInspectMovement: (ref: string) => void;
@@ -17,6 +19,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   warehouse,
   products,
   movements,
+  summary,
   onOpenQuickTransfer,
   onOpenNewReceipt,
   onInspectMovement,
@@ -30,7 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [activePage, setActivePage] = useState(1);
 
   // Compute live KPIs
-  const totalStock = products.reduce((acc, p) => acc + p.onHand, 0);
+  const totalStock = summary ? summary.totalInventory : products.reduce((acc, p) => acc + p.onHand, 0);
   const lowStockCount = products.filter((p) => p.status === 'low-stock').length;
   const outOfStockCount = products.filter((p) => p.status === 'out-of-stock').length;
 
@@ -207,15 +210,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-2 grid grid-cols-3 gap-2">
             <div className="p-2 rounded-lg bg-[#f2f4f6] text-center">
-              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">6</span>
+              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">{summary ? summary.pendingReceipts : 6}</span>
               <span className="text-[10px] text-[#4d556b] uppercase font-semibold">Receipts</span>
             </div>
             <div className="p-2 rounded-lg bg-[#f2f4f6] text-center">
-              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">9</span>
+              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">{summary ? summary.pendingDeliveries : 9}</span>
               <span className="text-[10px] text-[#4d556b] uppercase font-semibold">Deliveries</span>
             </div>
             <div className="p-2 rounded-lg bg-[#f2f4f6] text-center">
-              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">4</span>
+              <span className="text-[20px] text-[#191c1e] font-bold block font-tabular">{summary ? summary.pendingTransfers : 4}</span>
               <span className="text-[10px] text-[#4d556b] uppercase font-semibold">Transfers</span>
             </div>
           </div>

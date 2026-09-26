@@ -75,6 +75,13 @@ export async function POST(request: NextRequest) {
     
     const data = validation.data;
 
+    if (data.documentId) {
+      const docExists = await prisma.document.findUnique({ where: { id: data.documentId } });
+      if (!docExists) {
+        await prisma.document.create({ data: { id: data.documentId, type: data.type, reference: data.documentId, status: 'COMPLETED' } });
+      }
+    }
+
     const movement = await StockService.createMovement({
       productId: data.productId,
       fromLocationId: data.fromLocationId,
@@ -100,3 +107,4 @@ export async function POST(request: NextRequest) {
     return errorResponse('MOVEMENT_ERROR', error.message || 'Failed to create stock movement', 400);
   }
 }
+

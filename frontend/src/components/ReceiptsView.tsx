@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { InboundReceipt } from '../types/inventory';
 
-interface ReceiptsViewProps {
+interface ReceiptsViewProps { loading?: boolean; error?: string; onRefresh?: () => void;
   receipts: InboundReceipt[];
   onOpenCreateReceipt: () => void;
   onOpenScanner: () => void;
   onValidateReceipt: (receipt: InboundReceipt) => void;
 }
 
-export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
+export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ loading, error, onRefresh,
   receipts,
   onOpenCreateReceipt,
   onOpenScanner,
@@ -596,3 +596,4 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
     </div>
   );
 };
+

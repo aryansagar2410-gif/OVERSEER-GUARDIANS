@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getDashboardSummary, DashboardSummary } from './api/dashboard';
+import { getMovements } from './api/movements';
 import {
   Product,
   MovementRecord,
@@ -9,7 +11,6 @@ import {
 import {
   INITIAL_WAREHOUSES,
   INITIAL_PRODUCTS,
-  INITIAL_MOVEMENTS,
   INITIAL_RECEIPTS,
 } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
@@ -18,6 +19,8 @@ import { DashboardView } from './components/DashboardView';
 import { MobileDashboardView } from './components/MobileDashboardView';
 import { ProductsView } from './components/ProductsView';
 import { ReceiptsView } from './components/ReceiptsView';
+import { DeliveriesView } from './components/DeliveriesView';
+import { OutboundDelivery } from './types/inventory';
 import { MovementLedgerView } from './components/MovementLedgerView';
 import { AuthScreens } from './components/AuthScreens';
 import { Toast } from './components/Toast';
@@ -39,12 +42,29 @@ export default function App() {
   const [warehouses] = useState<WarehouseNode[]>(INITIAL_WAREHOUSES);
   const [activeWarehouse, setActiveWarehouse] = useState<WarehouseNode>(INITIAL_WAREHOUSES[0]);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [movements, setMovements] = useState<MovementRecord[]>(INITIAL_MOVEMENTS);
+  const [movements, setMovements] = useState<MovementRecord[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
   const [receipts, setReceipts] = useState<InboundReceipt[]>(INITIAL_RECEIPTS);
+  const [deliveries, setDeliveries] = useState<OutboundDelivery[]>([]);
 
   // Inspector & Modal States
   const [activeMovementRef, setActiveMovementRef] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+// Load initial data on mount
+  useEffect(() => {
+    getMovements(1, 100).then(res => setMovements(res.data)).catch(console.error);
+    getDashboardSummary().then(res => setDashboardSummary(res)).catch(console.error);
+    import('./api/products').then(({ getProducts }) => {
+      getProducts(1, 1000).then(res => setProducts(res.data)).catch(console.error);
+    });
+    import('./api/receipts').then(({ getReceipts }) => {
+      getReceipts(1, 100).then(res => setReceipts(res.data)).catch(console.error);
+    });
+    import('./api/deliveries').then(({ getDeliveries }) => {
+      getDeliveries(1, 100).then(res => setDeliveries(res.data)).catch(console.error);
+    });
+  }, []);
+
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [adjustModalProduct, setAdjustModalProduct] = useState<Product | null>(null);
   const [createReceiptOpen, setCreateReceiptOpen] = useState(false);
@@ -59,13 +79,13 @@ export default function App() {
     type: 'success',
   });
 
-  const showToast = (title: string, description: string) => {
+  const showToast = (title: string, description: string, type: 'success' | 'info' | 'warning' = 'success') => {
     setToast({
       id: Date.now().toString(),
       title,
       description,
       timestamp: 'Just now',
-      type: 'success',
+      type,
     });
   };
 
@@ -151,99 +171,105 @@ export default function App() {
   };
 
   // Physical stock adjustment action handler
-  const handleConfirmAdjust = (sku: string, delta: number, reason: string) => {
+  const handleValidateDelivery = async (delivery: OutboundDelivery) => {
+    try {
+      const { createDelivery } = await import('./api/deliveries');
+      const product = products.find(p => p.sku === delivery.sku || p.name.includes(delivery.productName));
+      if (!product) { showToast('Validation Failed', 'Product not found', 'warning'); return; }
+      
+      const fromLocationId = warehouses.find(w => w.name === delivery.sourceBay)?.id || warehouses[0]?.id;
+      if (!fromLocationId) { showToast('Validation Failed', 'No valid warehouse location found', 'warning'); return; }
+      
+      await createDelivery({
+        productId: product.id,
+        fromLocationId,
+        quantity: delivery.quantity,
+        documentId: delivery.ref
+      });
+
+      setDeliveries(prev => prev.map(d => d.id === delivery.id ? { ...d, status: 'done', verifiedBy: 'System', verifiedTime: 'Just now' } : d));
+
+      const { getProducts } = await import('./api/products');
+      const pRes = await getProducts(1, 1000);
+      setProducts(pRes.data);
+
+      const { getMovements } = await import('./api/movements');
+      const mRes = await getMovements(1, 100);
+      setMovements(mRes.data);
+
+      showToast(`Delivery ${delivery.ref} validated`, `Stock updated (-${delivery.quantity} units from ${delivery.sourceBay})`);
+    } catch (err: any) {
+      showToast('Validation Failed', err.message || 'Server error', 'warning');
+    }
+  };
+
+  const handleConfirmAdjust = async (sku: string, locationId: string, delta: number, reason: string) => {
     const product = products.find((p) => p.sku === sku);
     if (!product) return;
 
-    // Update product stock
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.sku === sku) {
-          const newOnHand = Math.max(0, p.onHand + delta);
-          return {
-            ...p,
-            onHand: newOnHand,
-            status: newOnHand === 0 ? 'out-of-stock' : newOnHand < 15 ? 'low-stock' : 'healthy',
-          };
-        }
-        return p;
-      })
-    );
+    try {
+      const { createAdjustment } = await import('./api/adjustments');
+      const newAdjustment = await createAdjustment({
+        productId: product.id,
+        locationId,
+        quantity: Math.abs(delta),
+        isPositive: delta > 0,
+        reason,
+      });
 
-    // Log adjustment in ledger
-    const adjRef = `ADJ-2023-0${Math.floor(180 + Math.random() * 800)}`;
-    const newMovement: MovementRecord = {
-      id: `m-${Date.now()}`,
-      ref: adjRef,
-      date: 'Today',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: 'Just now',
-      productName: product.name,
-      sku: product.sku,
-      type: 'Adjustment',
-      deltaQty: `${delta > 0 ? `+${delta}` : delta} ${product.unit}`,
-      qtyRaw: `${delta > 0 ? `+${delta}` : delta}`,
-      numericDelta: delta,
-      source: `${activeWarehouse.name} / ${product.location}`,
-      destination: delta < 0 ? 'Quarantine / Discrepancy Ledger' : `${activeWarehouse.name} / ${product.location}`,
-      operator: 'Elena Vance',
-      operatorInitials: 'EV',
-      status: 'Validated',
-      batch: 'LOT-2023-ADJ',
-      serials: 'AUDIT-SIG-VERIFIED',
-      hash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}...`,
-      qaInspection: reason,
-      parentDoc: `CYCLE-${Math.floor(100 + Math.random() * 900)}`,
-    };
-
-    setMovements((prev) => [newMovement, ...prev]);
-
-    showToast(
-      `Adjustment ${adjRef} recorded`,
-      `${product.sku} adjusted by ${delta > 0 ? `+${delta}` : delta} ${product.unit}`
-    );
+      setMovements((prev) => [newAdjustment, ...prev]);
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (p.sku === sku) {
+            const newOnHand = Math.max(0, p.onHand + delta);
+            return {
+              ...p,
+              onHand: newOnHand,
+              status: newOnHand === 0 ? 'out-of-stock' : newOnHand < 15 ? 'low-stock' : 'healthy',
+            };
+          }
+          return p;
+        })
+      );
+      showToast('Adjustment Completed', 'Stock adjusted successfully');
+    } catch (err: any) {
+      showToast('Adjustment Failed', err.message || 'Server error');
+    }
   };
 
+
   // Quick Transfer confirmation
-  const handleConfirmTransfer = (data: {
+  const handleValidateTransfer = async (transfer: any) => {
+    showToast('Already Validated', 'Transfers are executed immediately.');
+  };
+
+  const handleConfirmTransfer = async (data: {
     sku: string;
     productName: string;
     quantity: number;
     source: string;
     destination: string;
   }) => {
-    const trfRef = `TRF-2023-0${Math.floor(400 + Math.random() * 500)}`;
-    const newMovement: MovementRecord = {
-      id: `m-${Date.now()}`,
-      ref: trfRef,
-      date: 'Today',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: 'Just now',
-      productName: data.productName,
-      sku: data.sku,
-      type: 'Transfer',
-      deltaQty: `${data.quantity} moved (Net 0)`,
-      qtyRaw: `${data.quantity}`,
-      numericDelta: 0,
-      source: data.source,
-      destination: data.destination,
-      operator: 'Elena Vance',
-      operatorInitials: 'EV',
-      status: 'Validated',
-      batch: 'LOT-2023-TRF',
-      serials: 'AUTO-ROUTE-STAGED',
-      hash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}...`,
-      qaInspection: 'Transit manifest auto-routed',
-      parentDoc: `MNF-${Math.floor(1000 + Math.random() * 9000)}`,
-    };
+    try {
+      const { createTransfer } = await import('./api/transfers');
+      const product = products.find(p => p.sku === data.sku);
+      if (!product) throw new Error('Product not found');
+      
+      const newTransfer = await createTransfer({
+        productId: product.id,
+        fromLocationId: data.source,
+        toLocationId: data.destination,
+        quantity: data.quantity,
+      });
 
-    setMovements((prev) => [newMovement, ...prev]);
-
-    showToast(
-      `Transfer ${trfRef} registered`,
-      `${data.quantity} units dispatched from ${data.source} → ${data.destination}`
-    );
+      setMovements([newTransfer, ...movements]);
+      showToast('Transfer Completed', 'Stock moved successfully');
+      // local state updated
+    } catch (err: any) {
+      showToast('Transfer Failed', err.message || 'Server error');
+    }
   };
+
 
   // Add new receipt
   const handleAddReceipt = (newR: Partial<InboundReceipt>) => {
@@ -346,7 +372,10 @@ export default function App() {
   // Barcode / Scanner Matcher
   const handleScanResult = (code: string) => {
     const matchedProduct = products.find(
-      (p) => p.sku.toLowerCase() === code.toLowerCase() || p.id === code
+      (p) => 
+        p.sku.toLowerCase() === code.toLowerCase() || 
+        p.id === code || 
+        p.barcode === code
     );
     if (matchedProduct) {
       setCurrentTab('products');
@@ -365,8 +394,7 @@ export default function App() {
       return;
     }
 
-    showToast('Code Captured', `Detected raw barcode: ${code}`);
-    setGlobalSearch(code);
+    showToast('Unrecognized Scan', `Code ${code} did not match any Product or Receipt`, 'warning');
   };
 
   // If user navigated to Authentication & Security Portal
@@ -420,6 +448,7 @@ export default function App() {
                   warehouse={activeWarehouse}
                   products={products}
                   movements={movements}
+                  summary={dashboardSummary}
                   onOpenQuickTransfer={() => setTransferModalOpen(true)}
                   onOpenNewReceipt={() => setCreateReceiptOpen(true)}
                   onInspectMovement={(ref) => setActiveMovementRef(ref)}
@@ -455,7 +484,16 @@ export default function App() {
                 />
               )}
 
-              {(currentTab === 'history' || currentTab === 'deliveries' || currentTab === 'transfers' || currentTab === 'adjustments') && (
+              {currentTab === 'deliveries' && (
+                <DeliveriesView
+                  deliveries={deliveries}
+                  onOpenCreateDelivery={() => {}} 
+                  onOpenScanner={() => setScannerOpen(true)}
+                  onValidateDelivery={handleValidateDelivery}
+                />
+              )}
+
+              {(currentTab === 'history' || currentTab === 'transfers' || currentTab === 'adjustments') && (
                 <MovementLedgerView
                   movements={movements}
                   onExportCsv={handleExportCsv}

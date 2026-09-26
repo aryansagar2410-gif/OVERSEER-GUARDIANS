@@ -25,10 +25,10 @@ export function rateLimit(ip: string, limit: number, windowMs: number): boolean 
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, value] of cache.entries()) {
+    cache.forEach((value, key) => {
       if (now > value.expiresAt) {
         cache.delete(key);
       }
-    }
+    });
   }, 5 * 60 * 1000);
 }

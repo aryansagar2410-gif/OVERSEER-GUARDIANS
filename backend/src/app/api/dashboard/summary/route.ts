@@ -13,11 +13,17 @@ export async function GET(request: NextRequest) {
       activeProducts,
       warehouses,
       locations,
+      pendingReceipts,
+      pendingDeliveries,
+      pendingTransfers
     ] = await Promise.all([
       prisma.product.count(),
       prisma.product.count({ where: { isActive: true } }),
       prisma.warehouse.count({ where: { isActive: true } }),
-      prisma.stockLocation.count({ where: { isActive: true } })
+      prisma.stockLocation.count({ where: { isActive: true } }),
+      prisma.document.count({ where: { type: 'RECEIPT', status: 'DRAFT' } }),
+      prisma.document.count({ where: { type: 'DELIVERY', status: 'DRAFT' } }),
+      prisma.document.count({ where: { type: 'TRANSFER', status: 'DRAFT' } })
     ]);
 
     // Aggregate inventory quantity
@@ -54,7 +60,10 @@ export async function GET(request: NextRequest) {
       totalInventory: stockResult._sum.quantity || 0,
       warehouses,
       locations,
-      todayMovements
+      todayMovements,
+      pendingReceipts,
+      pendingDeliveries,
+      pendingTransfers
     });
   } catch (error) {
     return serverErrorResponse(error);

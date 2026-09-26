@@ -1,31 +1,31 @@
 import React, { useState } from 'react';
-import { InboundReceipt } from '../types/inventory';
+import { OutboundDelivery } from '../types/inventory';
 
-interface ReceiptsViewProps {
-  receipts: InboundReceipt[];
-  onOpenCreateReceipt: () => void;
+interface DeliveriesViewProps { loading?: boolean; error?: string; onRefresh?: () => void;
+  deliveries: OutboundDelivery[];
+  onOpenCreateDelivery: () => void;
   onOpenScanner: () => void;
-  onValidateReceipt: (receipt: InboundReceipt) => void;
+  onValidateDelivery: (delivery: OutboundDelivery) => void;
 }
 
-export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
-  receipts,
-  onOpenCreateReceipt,
+export const DeliveriesView: React.FC<DeliveriesViewProps> = ({ loading, error, onRefresh,
+  deliveries,
+  onOpenCreateDelivery,
   onOpenScanner,
-  onValidateReceipt,
+  onValidateDelivery,
 }) => {
   const [filterTab, setFilterTab] = useState<'all' | 'waiting' | 'ready' | 'done'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showEmptyStatePreview, setShowEmptyStatePreview] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
 
-  const filteredReceipts = receipts.filter((r) => {
+  const filteredDeliveries = deliveries.filter((r) => {
     if (filterTab !== 'all' && r.status !== filterTab) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
         r.ref.toLowerCase().includes(q) ||
-        r.vendor.toLowerCase().includes(q) ||
+        r.customer.toLowerCase().includes(q) ||
         r.productName.toLowerCase().includes(q) ||
         r.sku.toLowerCase().includes(q)
       );
@@ -33,14 +33,14 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
     return true;
   });
 
-  const waitingCount = receipts.filter((r) => r.status === 'waiting').length;
-  const readyCount = receipts.filter((r) => r.status === 'ready').length;
-  const doneCount = receipts.filter((r) => r.status === 'done').length;
+  const waitingCount = deliveries.filter((r) => r.status === 'waiting').length;
+  const readyCount = deliveries.filter((r) => r.status === 'ready').length;
+  const doneCount = deliveries.filter((r) => r.status === 'done').length;
 
-  const handleValidateClick = (r: InboundReceipt) => {
+  const handleValidateClick = (r: OutboundDelivery) => {
     setValidatingId(r.id);
     setTimeout(() => {
-      onValidateReceipt(r);
+      onValidateDelivery(r);
       setValidatingId(null);
     }, 800);
   };
@@ -56,12 +56,12 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
             </span>
             <span className="text-[#c3c6d7] text-xs">/</span>
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#004ac6]">
-              Inbound Operations
+              Outbound Operations
             </span>
           </div>
-          <h1 className="text-[24px] font-semibold text-[#191c1e] tracking-tight">Receipts</h1>
+          <h1 className="text-[24px] font-semibold text-[#191c1e] tracking-tight">Deliveries</h1>
           <p className="text-[13px] text-[#434655]">
-            Inbound purchase order shipments and supplier delivery intake queue.
+            Outbound purchase order shipments and supplier delivery intake queue.
           </p>
         </div>
 
@@ -82,11 +82,11 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
 
           <button
             type="button"
-            onClick={onOpenCreateReceipt}
+            onClick={onOpenCreateDelivery}
             className="h-9 px-3.5 rounded-lg bg-[#2563eb] text-white text-[13px] font-semibold flex items-center gap-2 shadow-sm hover:bg-[#004ac6] transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
-            <span>New Inbound Receipt</span>
+            <span>New Outbound Delivery</span>
           </button>
         </div>
       </div>
@@ -188,7 +188,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[16px] text-white font-semibold">Scan Inbound Manifest</span>
+              <span className="text-[16px] text-white font-semibold">Scan Outbound Manifest</span>
               <span className="inline-flex w-2 h-2 rounded-full bg-blue-300 animate-ping"></span>
             </div>
             <p className="text-[13px] text-blue-100 truncate mt-0.5">
@@ -213,9 +213,9 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
                 : 'text-[#434655] hover:bg-[#f2f4f6]'
             }`}
           >
-            <span>All Receipts</span>
+            <span>All Deliveries</span>
             <span className="px-1.5 py-0.2 rounded-md bg-white/20 text-[11px] font-mono">
-              {receipts.length}
+              {deliveries.length}
             </span>
           </button>
           <button
@@ -271,20 +271,20 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter receipts..."
+              placeholder="Filter deliveries..."
               className="w-full h-8 pl-9 pr-3 rounded-lg bg-[#f2f4f6] text-xs text-[#191c1e] placeholder:text-[#737686] focus:outline-none focus:bg-white border border-transparent focus:border-[#c3c6d7]"
             />
           </div>
           <button
             type="button"
-            onClick={() => alert('Sorting receipts by ETA')}
+            onClick={() => alert('Sorting deliveries by ETA')}
             className="h-8 px-2.5 rounded-lg bg-[#f2f4f6] text-[#434655] hover:bg-[#eceef0] transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">swap_vert</span>
           </button>
           <button
             type="button"
-            onClick={() => alert('Receipt manifest CSV export started')}
+            onClick={() => alert('Delivery manifest CSV export started')}
             className="h-8 px-2.5 rounded-lg bg-[#f2f4f6] text-[#434655] hover:bg-[#eceef0] transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">download</span>
@@ -292,7 +292,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
         </div>
       </div>
 
-      {/* Main Content: Either Empty State (Screenshot 9) OR Populated Receipts List (Screenshot 7) */}
+      {/* Main Content: Either Empty State (Screenshot 9) OR Populated Deliveries List (Screenshot 7) */}
       {showEmptyStatePreview ? (
         /* Empty State Layout from Screenshot 9 */
         <div className="bg-white rounded-xl shadow-sm border border-[#c3c6d7]/20 overflow-hidden flex flex-col">
@@ -322,21 +322,21 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
               </span>
 
               <h2 className="text-[24px] font-bold text-[#191c1e] tracking-tight mb-2">
-                No Inbound Receipts Found
+                No Outbound Deliveries Found
               </h2>
               <p className="text-[14px] text-[#434655] mb-8 leading-relaxed max-w-md">
                 There are no active purchase orders or supplier shipments pending dock intake. Create a new
-                receipt manually or import an ASN manifest to populate the receiving ledger.
+                delivery manually or import an ASN manifest to populate the receiving ledger.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <button
                   type="button"
-                  onClick={onOpenCreateReceipt}
+                  onClick={onOpenCreateDelivery}
                   className="w-full sm:w-auto h-10 px-5 rounded-lg bg-[#2563eb] text-white text-[13px] font-semibold flex items-center justify-center gap-2 shadow-sm hover:bg-[#004ac6] transition-colors"
                 >
                   <span className="material-symbols-outlined text-[20px]">add_box</span>
-                  <span>+ Create First Receipt</span>
+                  <span>+ Create First Delivery</span>
                 </button>
                 <button
                   type="button"
@@ -355,7 +355,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-semibold text-[#191c1e]">Pro-tip for Austin WH-01</span>
                   <p className="text-[12px] text-[#434655]">
-                    Warehouse docks can automatically generate draft receipts when RF barcode scanners detect
+                    Warehouse docks can automatically generate draft deliveries when RF barcode scanners detect
                     incoming carrier tracking tags from FedEx, UPS, or Maersk Logistics.
                   </p>
                 </div>
@@ -364,9 +364,9 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
           </div>
         </div>
       ) : (
-        /* Populated Receipts Stream (matching Screenshot 7) */
+        /* Populated Deliveries Stream (matching Screenshot 7) */
         <div className="space-y-4">
-          {filteredReceipts.map((r) => {
+          {filteredDeliveries.map((r) => {
             const isReady = r.status === 'ready';
             const isWaiting = r.status === 'waiting';
             const isDone = r.status === 'done';
@@ -382,7 +382,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[14px] font-bold text-[#191c1e] font-mono">{r.ref}</span>
                       <span className="text-gray-400">•</span>
-                      <span className="text-xs text-[#434655] font-medium">{r.vendor}</span>
+                      <span className="text-xs text-[#434655] font-medium">{r.customer}</span>
                     </div>
                     <p className="text-[16px] font-semibold text-[#191c1e] mt-1">{r.productName}</p>
                   </div>
@@ -420,7 +420,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[16px] text-[#505f76]">warehouse</span>
                     <span>
-                      {r.dock} <span className="text-[#004ac6] font-medium">→ {r.targetBay}</span>
+                      {r.dock} <span className="text-[#004ac6] font-medium">→ {r.sourceBay}</span>
                     </span>
                   </div>
                 </div>
@@ -488,7 +488,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
                         <span className={`material-symbols-outlined text-[17px] ${isValidating ? 'animate-spin' : ''}`}>
                           {isValidating ? 'refresh' : 'check_circle'}
                         </span>
-                        <span>{isValidating ? 'Validating...' : 'Validate Receipt'}</span>
+                        <span>{isValidating ? 'Validating...' : 'Validate Delivery'}</span>
                       </button>
                       <button
                         type="button"
@@ -596,3 +596,6 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({
     </div>
   );
 };
+
+
+

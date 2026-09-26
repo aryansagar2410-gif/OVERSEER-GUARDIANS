@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Product, InboundReceipt } from '../types/inventory';
+import { apiClient } from '../api/client';
 
 interface QuickTransferModalProps {
   isOpen: boolean;
@@ -22,8 +23,23 @@ export const QuickTransferModal: React.FC<QuickTransferModalProps> = ({
 }) => {
   const [selectedSku, setSelectedSku] = useState(products[0]?.sku || '');
   const [qty, setQty] = useState(10);
-  const [source, setSource] = useState('WH-01 / Staging Bay 04');
-  const [dest, setDest] = useState('WH-01 / Bay-A-10');
+  const [source, setSource] = useState('');
+  const [dest, setDest] = useState('');
+  const [locations, setLocations] = React.useState<{id: string, name: string}[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      apiClient<{data: {id: string, name: string}[]}>('/locations').then(res => {
+        setLocations(res.data);
+        if (res.data.length >= 2) {
+          setSource(res.data[0].id);
+          setDest(res.data[1].id);
+        } else if (res.data.length === 1) {
+          setSource(res.data[0].id);
+        }
+      }).catch(console.error);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -92,23 +108,25 @@ export const QuickTransferModal: React.FC<QuickTransferModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Origin Source</label>
-              <input
-                type="text"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                required
-                className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
-              />
+              <select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  required
+                  className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                >
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Target Destination</label>
-              <input
-                type="text"
-                value={dest}
-                onChange={(e) => setDest(e.target.value)}
-                required
-                className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
-              />
+              <select
+                  value={dest}
+                  onChange={(e) => setDest(e.target.value)}
+                  required
+                  className="w-full h-9 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                >
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
             </div>
           </div>
 
@@ -142,7 +160,7 @@ interface AdjustStockModalProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirmAdjust: (sku: string, delta: number, reason: string) => void;
+  onConfirmAdjust: (sku: string, locationId: string, delta: number, reason: string) => void;
 }
 
 export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
@@ -151,14 +169,30 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
   onClose,
   onConfirmAdjust,
 }) => {
-  const [delta, setDelta] = useState<number>(-2);
-  const [reason, setReason] = useState('Cycle count discrepancy');
+  const [delta, setDelta] = React.useState<number>(-2);
+  const [reason, setReason] = React.useState('Cycle count discrepancy');
+  const [locationId, setLocationId] = React.useState('');
+  const [locations, setLocations] = React.useState<{id: string, name: string}[]>([]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      import('../api/client').then(({ apiClient }) => {
+        apiClient<{data: {id: string, name: string}[]}>('/locations').then(res => {
+          setLocations(res.data);
+          if (res.data.length > 0 && !locationId) {
+            setLocationId(res.data[0].id);
+          }
+        }).catch(console.error);
+      });
+    }
+  }, [isOpen, locationId]);
 
   if (!isOpen || !product) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirmAdjust(product.sku, delta, reason);
+    if (!locationId) return;
+    onConfirmAdjust(product.sku, locationId, delta, reason);
     onClose();
   };
 
@@ -181,6 +215,20 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Target Location</label>
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              required
+              className="w-full h-9 px-3 rounded-lg border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">Select location...</option>
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="bg-gray-50 p-3 rounded-xl flex items-center justify-between">
             <div>
               <span className="text-[11px] text-gray-500 block">Current On-Hand</span>

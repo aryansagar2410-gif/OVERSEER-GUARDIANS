@@ -1,6 +1,7 @@
 export interface Product {
   id: string;
   sku: string;
+  barcode?: string | null;
   name: string;
   category: 'Motors' | 'Sensors' | 'Controllers' | 'Power / Cells' | 'Hardware' | 'Fasteners' | 'Fluids';
   location: string;
@@ -22,6 +23,7 @@ export interface MovementRecord {
   timestamp: string;
   productName: string;
   sku: string;
+  barcode?: string | null;
   type: 'Receipt' | 'Delivery' | 'Transfer' | 'Adjustment';
   deltaQty: string;
   qtyRaw: string;
@@ -45,6 +47,7 @@ export interface InboundReceipt {
   vendor: string;
   productName: string;
   sku: string;
+  barcode?: string | null;
   status: 'ready' | 'waiting' | 'done' | 'draft';
   quantity: number;
   unit: string;
@@ -84,4 +87,26 @@ export interface ToastMessage {
   description: string;
   timestamp: string;
   type?: 'success' | 'info' | 'warning';
+}
+
+export interface OutboundDelivery {
+  id: string;
+  ref: string;
+  customer: string;
+  productName: string;
+  sku: string;
+  barcode?: string | null;
+  status: 'ready' | 'waiting' | 'done' | 'draft';
+  quantity: number;
+  unit: string;
+  dock: string;
+  sourceBay: string;
+  weightKg?: number;
+  palletLot?: string;
+  preCleared?: boolean;
+  eta?: string;
+  carrier?: string;
+  verifiedBy?: string;
+  verifiedTime?: string;
+  image?: string;
 }

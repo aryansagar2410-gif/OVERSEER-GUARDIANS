@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types/inventory';
 
-interface ProductsViewProps {
+interface ProductsViewProps { loading?: boolean; error?: string; onRefresh?: () => void; onDeleteProduct?: (id: string) => void;
   products: Product[];
   onOpenNewSku: () => void;
   onOpenScanner: () => void;
@@ -11,7 +11,7 @@ interface ProductsViewProps {
   onViewMovementLog: (sku: string) => void;
 }
 
-export const ProductsView: React.FC<ProductsViewProps> = ({
+export const ProductsView: React.FC<ProductsViewProps> = ({ loading, error, onRefresh, onDeleteProduct,
   products,
   onOpenNewSku,
   onOpenScanner,
@@ -341,8 +341,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       className="h-9 rounded-lg bg-[#d0e1fb] text-[#004ac6] text-[12px] font-semibold flex items-center justify-center gap-1 hover:bg-blue-200 transition-colors"
                     >
                       <span className="material-symbols-outlined text-[17px]">qr_code_2</span>
-                      <span>Tag / Print</span>
-                    </button>
+                      <span>Tag / Print</span></button>{onDeleteProduct && <button type="button" onClick={() => onDeleteProduct(p.id)} className="h-9 rounded-lg bg-red-100 text-red-600 text-[12px] font-semibold flex items-center justify-center gap-1 hover:bg-red-200 transition-colors"><span className="material-symbols-outlined text-[17px]">delete</span></button>}
                   </>
                 )}
               </div>
@@ -365,3 +364,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     </div>
   );
 };
+
+
+
+

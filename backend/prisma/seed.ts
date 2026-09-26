@@ -28,13 +28,13 @@ async function main() {
     data: { email: 'staff@stocksense.local', password, name: 'Staff User', role: 'STAFF' }
   });
   const viewer = await prisma.user.create({
-    data: { email: 'viewer@stocksense.local', password, name: 'Viewer User', role: Role.VIEWER }
+    data: { email: 'viewer@stocksense.local', password, name: 'Viewer User', role: 'VIEWER' }
   });
 
   console.log('Seeding Categories...');
   const catElectronics = await prisma.category.create({ data: { name: 'Electronics', description: 'Electronic items' } });
   const catOffice = await prisma.category.create({ data: { name: 'Office', description: 'Office supplies' } });
-  const catHardware = await prisma.category.create({ data: { name: 'Hardware', description: 'Hardware tools' } });
+  const catHardware = await prisma.category.create({ data: { id: 'cat-hardware', name: 'Hardware', description: 'Hardware tools' } });
   const catAccessories = await prisma.category.create({ data: { name: 'Accessories', description: 'Tech Accessories' } });
 
   console.log('Seeding Warehouses and Locations...');
@@ -89,4 +89,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+
 

@@ -72,6 +72,15 @@ export class StockService {
         if (!toLoc) throw new Error('Destination location not found');
       }
 
+      if (params.documentId) { 
+        const existingDoc = await tx.document.findUnique({ where: { id: params.documentId } }); 
+        if (!existingDoc) { 
+          await tx.document.create({ data: { id: params.documentId, type: params.type, reference: params.documentId, status: 'COMPLETED' } }); 
+        } else if (existingDoc.type !== params.type) {
+          throw new Error(`Document collision: Document ${params.documentId} is of type ${existingDoc.type}, cannot be used for ${params.type}`);
+        }
+      }
+
       // 3. Create the Movement (The Ledger Entry)
       const movement = await tx.stockMovement.create({
         data: {
@@ -134,3 +143,5 @@ export class StockService {
     });
   }
 }
+
+

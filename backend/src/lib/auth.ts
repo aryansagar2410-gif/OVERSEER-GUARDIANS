@@ -16,12 +16,12 @@ export interface JwtPayload {
 }
 
 export function signToken(payload: JwtPayload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: '1d' });
 }
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+    return (jwt.verify(token, JWT_SECRET!) as unknown) as JwtPayload;
   } catch (error) {
     return null;
   }
